@@ -77,6 +77,7 @@ static int bcch(struct osmocom_ms *ms, struct msgb *msg)
 		LOGP(DRR, LOGL_NOTICE, "Invalid BCCH message length\n");
 		return -EINVAL;
 	}
+	
 	switch (sih->system_information) {
 	case GSM48_MT_RR_SYSINFO_1:
 		LOGP(DRR, LOGL_INFO, "New SYSTEM INFORMATION 1\n");
@@ -90,6 +91,8 @@ static int bcch(struct osmocom_ms *ms, struct msgb *msg)
 			(struct gsm48_system_information_type_4 *) sih,
 			msgb_l3len(msg));
 		return try_cbch(ms, s);
+	case GSM48_MT_RR_SYSINFO_5:
+		LOGP(DRR, LOGL_INFO, ">>>>>>>  New SYSTEM INFORMATION 5\n");
 	default:
 		return 0;
 	}

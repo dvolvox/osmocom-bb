@@ -36,6 +36,8 @@
 #include <osmocom/bb/common/osmocom_data.h>
 #include <osmocom/bb/common/l1ctl.h>
 
+
+
 /* Send a 'simple' RLL request to L2 */
 int rslms_tx_rll_req(struct osmocom_ms *ms, uint8_t msg_type,
 		     uint8_t chan_nr, uint8_t link_id)
@@ -71,6 +73,8 @@ static int rslms_rx_udata_ind(struct msgb *msg, struct osmocom_ms *ms)
 		return -EIO;
 	}
 	msg->l3h = (uint8_t *) TLVP_VAL(&tv, RSL_IE_L3_INFO);
+
+
 
 	if (rllh->chan_nr == RSL_CHAN_PCH_AGCH) {
 		rc = gsm48_rx_ccch(msg, ms);

@@ -47,6 +47,8 @@
 #include <osmocom/gsm/protocol/gsm_04_08.h>
 #include <osmocom/gsm/protocol/gsm_08_58.h>
 
+#include <osmocom/bb/mobile/app_gsec.h>
+
 /* TS 04.06 Figure 4 / Section 3.2 */
 #define LAPDm_LPD_NORMAL  0
 #define LAPDm_LPD_SMSCB	  1
@@ -1143,6 +1145,9 @@ int lapdm_rslms_recvmsg(struct msgb *msg, struct lapdm_channel *lc)
 
 	switch (rslh->msg_discr & 0xfe) {
 	case ABIS_RSL_MDISC_RLL:
+		if (testcase_kraken_ctrl.isActive == true){
+			callback_test_5_step1(msg, lc);
+		}
 		rc = rslms_rx_rll(msg, lc);
 		break;
 	case ABIS_RSL_MDISC_COM_CHAN:

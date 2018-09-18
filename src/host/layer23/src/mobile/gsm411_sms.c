@@ -40,6 +40,7 @@
 #include <osmocom/gsm/gsm0411_utils.h>
 #include <osmocom/core/talloc.h>
 #include <osmocom/bb/mobile/vty.h>
+#include <osmocom/bb/mobile/app_gsec.h>
 #include <osmocom/bb/mobile/primitives.h>
 
 #define UM_SAPI_SMS 3
@@ -110,8 +111,22 @@ struct gsm_sms *sms_from_text(const char *receiver, int dcs, const char *text)
 	sms->reply_path_req = 0;
 	sms->status_rep_req = 0;
 	sms->ud_hdr_ind = 0;
-	sms->protocol_id = 0; /* implicit */
-	sms->data_coding_scheme = dcs;
+	
+	//sms->protocol_id = 0; /* implicit */
+	//sms->data_coding_scheme = dcs;
+
+	if (testcase_silentsms.pid){
+		sms->protocol_id = 0x40;
+	} else {
+		sms->protocol_id = 0;
+	}
+
+	if (testcase_silentsms.dcs){
+		sms->data_coding_scheme = 0xC0;
+	} else {
+		sms->data_coding_scheme = dcs;
+	}
+
 	strncpy(sms->address, receiver, sizeof(sms->address)-1);
 	/* Generate user_data */
 	sms->user_data_len = gsm_7bit_encode_n(sms->user_data,
@@ -129,6 +144,20 @@ static int gsm411_sms_report(struct osmocom_ms *ms, struct gsm_sms *sms,
 	else
 		vty_notify(ms, "SMS to %s failed: %s\n", sms->address,
 			get_value_string(gsm411_rp_cause_strs, cause));
+	
+	// GSEC - Callback for testcase #1
+	if (testcase_silentsms.isWaiting == true){
+		callback_testcase_1_step1();
+	}
+	
+	// GESEC - Callback for testcase #3
+	if (testcase_zeroedimei.isActive == true){
+		if (!cause){
+			callback_testcase_3_step1(1);
+		} else {
+			callback_testcase_3_step1(0);
+		}
+	}
 
 	mobile_prim_ntfy_sms_status(ms, sms, cause);
 	return 0;
@@ -198,6 +227,18 @@ static int gsm340_rx_sms_deliver(struct osmocom_ms *ms, struct msgb *msg,
 	}
 	vty_notify(ms, NULL);
 	vty_notify(ms, "SMS from %s: '%s'\n", gsms->address, vty_text);
+
+	// Stop loop from gsec - check if flag is in message payload
+	if (testcase_silentsms.isWaiting){
+		if(strstr(vty_text, flag_silentsms_frequencyhopping) != NULL) {
+			testcase_silentsms.isWaiting = false;
+			// Check if the received SMS contains the changed DCS and PID
+			if (gsms->protocol_id == 0x40 && gsms->data_coding_scheme == 0xC0){
+				testcase_silentsms.isActive = 1;
+			}
+		}
+		callback_testcase_1_step2();
+	}
 
 	home = getenv("HOME");
         if (!home) {

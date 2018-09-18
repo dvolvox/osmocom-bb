@@ -79,6 +79,7 @@
 #include <osmocom/bb/common/networks.h>
 #include <osmocom/bb/common/l1ctl.h>
 #include <osmocom/bb/mobile/vty.h>
+#include <osmocom/bb/mobile/app_gsec.h>
 
 #include <l1ctl_proto.h>
 
@@ -964,6 +965,7 @@ static int gsm48_rr_rx_cip_mode_cmd(struct osmocom_ms *ms, struct msgb *msg)
 	/* cipher mode setting */
 	sc = cm->sc;
 	alg_id = cm->alg_id;
+	
 	/* cipher mode response */
 	cr = cm->cr;
 
@@ -974,9 +976,16 @@ static int gsm48_rr_rx_cip_mode_cmd(struct osmocom_ms *ms, struct msgb *msg)
 		LOGP(DRR, LOGL_INFO, "CIPHERING MODE COMMAND (sc=%u, "
 			"algo=A5/%d cr=%u)\n", sc, alg_id + 1, cr);
 
+
+	
 	/* 3.4.7.2 */
 	if (rr->cipher_on && sc) {
 		LOGP(DRR, LOGL_NOTICE, "chiphering already applied\n");
+		// GSEC - Failed to ccommand
+		if (testcase_encryption.isActive == true){
+			callback_testcase_2_step1(0);
+		}
+
 		return gsm48_rr_tx_rr_status(ms,
 			GSM48_RR_CAUSE_PROT_ERROR_UNSPC);
 	}
@@ -990,6 +999,10 @@ static int gsm48_rr_rx_cip_mode_cmd(struct osmocom_ms *ms, struct msgb *msg)
 		|| (alg_id == GSM_CIPHER_A5_6 && !set->a5_6)
 		|| (alg_id == GSM_CIPHER_A5_7 && !set->a5_7))) {
 		LOGP(DRR, LOGL_NOTICE, "algo not supported\n");
+		// GSEC - Failed to ccommand
+		if (testcase_encryption.isActive == true){
+			callback_testcase_2_step1(0);
+		}
 		return gsm48_rr_tx_rr_status(ms,
 			GSM48_RR_CAUSE_PROT_ERROR_UNSPC);
 	}
@@ -997,6 +1010,11 @@ static int gsm48_rr_rx_cip_mode_cmd(struct osmocom_ms *ms, struct msgb *msg)
 	/* check if we have no key */
 	if (sc && subscr->key_seq == 7) {
 		LOGP(DRR, LOGL_NOTICE, "no key available\n");
+		// GSEC - Failed to ccommand
+		if (testcase_encryption.isActive == true){
+			callback_testcase_2_step1(0);
+		}
+
 		return gsm48_rr_tx_rr_status(ms,
 			GSM48_RR_CAUSE_PROT_ERROR_UNSPC);
 	}
@@ -1008,6 +1026,13 @@ static int gsm48_rr_rx_cip_mode_cmd(struct osmocom_ms *ms, struct msgb *msg)
 		l1ctl_tx_crypto_req(ms, rr->cipher_type + 1, subscr->key, 8);
 	else
 		l1ctl_tx_crypto_req(ms, 0, NULL, 0);
+
+	LOGP(DRR, LOGL_NOTICE, "TEST CASE ENCRYPTION: %d\n", testcase_encryption.isActive);
+	// GSEC - Testing encryption algo
+	if (testcase_encryption.isActive == true){
+		testcase_encryption_cipher_mode = cm;
+		callback_testcase_2_step1(1);
+	}
 
 	/* response (using the new mode) */
 	return gsm48_rr_tx_cip_mode_cpl(ms, cr);
@@ -1206,7 +1231,11 @@ int gsm48_rr_enc_cm2(struct osmocom_ms *ms, struct gsm48_classmark2 *cm,
 	struct gsm_settings *set = &ms->settings;
 
 	cm->pwr_lev = gsm48_current_pwr_lev(set, arfcn);
-	cm->a5_1 = !set->a5_1;
+	if (testcase_encryption.isActive == true){
+		cm->a5_1 = set->a5_1;
+	} else {
+		cm->a5_1 = !set->a5_1;
+	}
 	cm->es_ind = sup->es_ind;
 	cm->rev_lev = sup->rev_lev;
 	cm->fc = (set->r_gsm || set->e_gsm);
@@ -2432,6 +2461,8 @@ static int gsm48_rr_rx_imm_ass(struct osmocom_ms *ms, struct msgb *msg)
 			ia->timing_advance * GSM_TA_CM / 100,
 			ia->req_ref.ra, ia->chan_desc.chan_nr, cd.maio,
 			cd.hsn, ch_ts, ch_subch, cd.tsc);
+		testcase_1_channel = cd;
+		
 	} else {
 		cd.h = 0;
 		gsm48_decode_chan_h0(&ia->chan_desc, &cd.tsc, &cd.arfcn);

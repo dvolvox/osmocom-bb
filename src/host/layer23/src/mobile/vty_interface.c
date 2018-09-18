@@ -38,6 +38,7 @@
 #include <osmocom/bb/mobile/transaction.h>
 #include <osmocom/bb/mobile/vty.h>
 #include <osmocom/bb/mobile/app_mobile.h>
+#include <osmocom/bb/mobile/app_gsec.h>
 #include <osmocom/bb/mobile/gsm480_ss.h>
 #include <osmocom/bb/mobile/gsm411_sms.h>
 #include <osmocom/vty/telnet_interface.h>
@@ -1306,6 +1307,71 @@ DEFUN(cfg_no_ms, cfg_no_ms_cmd, "no ms MS_NAME",
 
 	mobile_delete(ms, 1);
 
+	return CMD_SUCCESS;
+}
+
+DEFUN(gsec, gsec_cmd, "gsec [MSNAME] (SCAN|REPORT|CRACK) MSISDN Testcase1 Testcase2 Testcase3 Testcase4 Testcase5",
+	"Perform an Security evaluation of the current ARFCN \n"
+	"Name of MS (see \"show ms\") \n"
+	"SCAN to perform test cases \n"
+	"REPORT to check the stats \n"
+	"CRACK to print keystream \n"
+	"Cellphone number \n"
+	"1 to test Silent SMS and check for frequency Hopping, 0 to skip \n"
+	"1 to test A5/(0|1|2|3) Support, 0 to skip \n"
+	"1 to test Zeroed IMEI, 0 to skip \n"
+	"1 to test DoS Attacks, 0 to skip \n"
+	"1 to test for KRAKEN Requirements, 0 to skip \n")
+{
+	struct osmocom_ms *ms;
+	ms = get_ms(argv[0], vty);
+	
+	/*
+		Requirements 
+		(+ Registered in the Network)
+		(+ Start Stats Module)
+		(- Check if argv[1] is actual a valid number)
+	*/
+	if (!ms){
+		return CMD_WARNING;
+	}else{
+		gsec_ms = ms;
+		gsec_number = argv[2];
+		gsec_vty = vty;
+	}
+	testaux_stats.isActive = true;
+
+	/*
+		Parsing and calling
+	*/
+
+	if(argc>1 && (argv[1][0] == 'R')){
+		// REPORT MODE 
+		aux_checkstats_report();
+	} else if(argv[1][0] == 'S' && argc>6){
+		// SCAN MODE
+		if(atoi(argv[3])){
+			vty_out(vty, "[GSEC][*] Testing for Silent SMS and Frequency Hopping %s", VTY_NEWLINE);
+			execute_testcase_1();
+		} else if(atoi(argv[4])){
+			vty_out(vty, "[GSEC][*] Testing for A5/(0|1|2|3) network Support %s", VTY_NEWLINE);
+			execute_testcase_2();
+		} else if(atoi(argv[5])){
+			vty_out(vty, "[GSEC][*] Testing Zeroed IMEI network Support %s", VTY_NEWLINE);
+			execute_testcase_3();
+		} else if(atoi(argv[6])){
+			vty_out(vty, "[GSEC][*] Testing DoS Attacks %s", VTY_NEWLINE);
+			execute_testcase_4();
+		} else if(atoi(argv[7])){
+			vty_out(vty, "[GSEC][*] Testing Kraken Requirements %s", VTY_NEWLINE);
+			execute_testcase_5();
+		} else {
+			return CMD_ERR_NO_MATCH;
+		}
+	} else {
+		return CMD_ERR_NO_MATCH;
+	}
+	
 	return CMD_SUCCESS;
 }
 
@@ -2834,6 +2900,7 @@ int ms_vty_init(void)
 	install_element(ENABLE_NODE, &service_cmd);
 	install_element(ENABLE_NODE, &test_reselection_cmd);
 	install_element(ENABLE_NODE, &delete_forbidden_plmn_cmd);
+	install_element(ENABLE_NODE, &gsec_cmd);
 
 #ifdef _HAVE_GPSD
 	install_element(CONFIG_NODE, &cfg_gps_host_cmd);

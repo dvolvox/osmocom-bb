@@ -470,6 +470,34 @@ int l1ctl_tx_rach_req(struct osmocom_ms *ms, uint8_t ra, uint16_t offset,
 	return osmo_send_l1(ms, msg);
 }
 
+/* Receive L1CTL_BURST_IND (Data Indication from L1) */
+static int rx_ph_burst_ind(struct osmocom_ms *ms, struct msgb *msg)
+{
+        struct l1ctl_burst_ind *bi;
+        struct osmobb_msg_ind mi;
+        uint8_t chan_type, chan_ts, chan_ss;
+        struct gsm_time rx_time;
+        uint16_t arfcn;
+
+        /* Header handling */
+        bi = (struct l1ctl_burst_ind *) msg->l1h;
+
+        rsl_dec_chan_nr(bi->chan_nr, &chan_type, &chan_ss, &chan_ts);
+        gsm_fn2gsmtime(&rx_time, ntohl(bi->frame_nr));
+        arfcn = ntohs(bi->band_arfcn);
+
+        /* Dispatch signal !HACK! */
+        mi.ms = ms;
+        mi.msg = msg;
+        osmo_signal_dispatch(SS_L1CTL, S_L1CTL_BURST_IND, &mi);
+
+        /* Done with the message */
+        msgb_free(msg);
+
+        return 0;
+}
+
+
 /* Transmit L1CTL_DM_EST_REQ */
 int l1ctl_tx_dm_est_req_h0(struct osmocom_ms *ms, uint16_t band_arfcn,
                            uint8_t chan_nr, uint8_t tsc, uint8_t tch_mode,
@@ -948,6 +976,9 @@ int l1ctl_recv(struct osmocom_ms *ms, struct msgb *msg)
 	case L1CTL_DATA_CONF:
 		rc = rx_ph_data_conf(ms, msg);
 		break;
+	case L1CTL_BURST_IND:
+		rc = rx_ph_burst_ind(ms, msg);
+		break;		
 	case L1CTL_RESET_IND:
 	case L1CTL_RESET_CONF:
 		rc = rx_l1_reset(ms);

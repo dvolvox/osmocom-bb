@@ -39,6 +39,7 @@
 #include <osmocom/bb/mobile/gsm480_ss.h>
 #include <osmocom/bb/mobile/gsm411_sms.h>
 #include <osmocom/bb/mobile/app_mobile.h>
+#include <osmocom/bb/mobile/app_gsec.h>
 #include <osmocom/bb/mobile/primitives.h>
 #include <osmocom/bb/mobile/vty.h>
 
@@ -2450,6 +2451,10 @@ static int gsm48_mm_rx_loc_upd_acc(struct osmocom_ms *ms, struct msgb *msg)
 	}
 
 	LOGP(DSUM, LOGL_INFO, "Location update accepted\n");
+	if (testcase_encryption.isActive == true){
+		callback_testcase_2_step2(1);
+	}
+	
 	LOGP(DMM, LOGL_INFO, "LOCATION UPDATING ACCEPT (mcc %s mnc %s "
 		"lac 0x%04x)\n", gsm_print_mcc(subscr->mcc),
 		gsm_print_mnc(subscr->mnc), subscr->lac);
@@ -2680,6 +2685,9 @@ static int gsm48_mm_loc_upd_failed(struct osmocom_ms *ms, struct msgb *msg)
 	struct gsm_subscriber *subscr = &ms->subscr;
 
 	LOGP(DSUM, LOGL_INFO, "Location update failed\n");
+	if (testcase_encryption.isActive == true){
+		callback_testcase_2_step2(0);
+	}
 
 	/* stop location update timer, if running */
 	stop_mm_t3210(mm);
