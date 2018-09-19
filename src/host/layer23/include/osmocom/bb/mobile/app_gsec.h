@@ -74,4 +74,23 @@ int execute_testcase_4();
 int execute_testcase_5();
 int callback_test_5_step1(struct msgb *msg);
 
+// GXK - Gsm eXploitation Kit
+
+//Silent SMS
+struct {
+    // Current SMS Queue
+    int current_message_number;
+
+    // Max Messages
+    int chain_messages;
+
+    // Flag to Check if attack is running
+    bool executing;
+
+} attack_silentsms;
+
+
+int execute_attack_1();
+int execute_attack_1_callback();
+
 #endif
